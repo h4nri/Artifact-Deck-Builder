@@ -1,5 +1,4 @@
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.imageio.ImageIO;
@@ -18,6 +17,10 @@ public class CardLibrary {
     private static final String USER_AGENT = "Mozilla/5.0";
     private static final String SET_BASE_PATH = "https://playartifact.com/cardset/";
 
+    public CardLibrary() {
+
+    }
+
     /**
      * Sends two GET requests to:
      * 1) Get URL of set's json file
@@ -26,7 +29,7 @@ public class CardLibrary {
      * @param set The set to be requested
      * @return A JSONObject containing information on set
      */
-    public static JSONObject sendGetRequests(String set) {
+    public JSONObject sendGetRequests(String set) {
         try {
             URL url = new URL(SET_BASE_PATH + set);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -42,8 +45,8 @@ public class CardLibrary {
                     response.append(responseLine + "\n");
                 }
 
-                JSONObject jsonObject = new JSONObject(response.toString());
-                url = new URL((String) jsonObject.get("cdn_root") + jsonObject.get("url"));
+                JSONObject json = new JSONObject(response.toString());
+                url = new URL((String) json.get("cdn_root") + json.get("url"));
                 connection = (HttpURLConnection) url.openConnection();
 
                 if (connection.getResponseCode() == 200) {
@@ -54,12 +57,12 @@ public class CardLibrary {
                         response.append(responseLine + "\n");
                     }
 
-                    jsonObject = new JSONObject(response.toString());
+                    json = new JSONObject(response.toString());
                 }
 
                 br.close();
-                //System.out.println(response);
-                return jsonObject;
+                //System.out.println(json.toString(4));
+                return json;
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -69,63 +72,138 @@ public class CardLibrary {
     }
 
     /**
-     * Creates a list of playable cards in a set based on its json file
-     * Playable cards include: heroes, creeps, items, & spells
+     * Creates a list of playable cards in a set based on its JSON file
+     * Playable cards include: creeps, heroes, items, and spells
      *
-     * @param jsonObj A JSONObject created from a set's json file
+     * @param jsonObj A JSONObject created from a set's JSON file
      * @return A list of playable cards from the set detailed in jsonObj
      */
-    public static List<Card> readJSONFile(JSONObject jsonObj) {
+    public List<Card> readJSON(JSONObject jsonObj) {
         List<Card> cards = new ArrayList<>();
-        JSONObject cardSet = (JSONObject) jsonObj.get("card_set");
-        JSONArray cardList = (JSONArray) cardSet.get("card_list");
+        JSONObject cardSet = jsonObj.getJSONObject("card_set");
+        JSONArray cardList = cardSet.getJSONArray("card_list");
 
         for (Object object : cardList) {
-            JSONObject jsonObject = (JSONObject) object;
-            String cardType = (String) jsonObject.get("card_type");
+            JSONObject json = (JSONObject) object;
 
-            if (cardType.equals("Hero") || cardType.equals("Creep") || cardType.equals("Item")
-                    || cardType.equals("Spell")) {
-                int cardID = (int) jsonObject.get("card_id");
-                String cardName = (String) ((JSONObject) jsonObject.get("card_name")).get("english");
+            try {
+                Card card;
+
+                // Initialize variables that all Cards should have
+                int cardID = json.getInt("card_id");
+                CardType cardType = CardType.valueOf(json.getString("card_type").toUpperCase());
+                String cardName = json.getJSONObject("card_name").getString("english");
                 String cardText;
                 ImageIcon miniImage;
                 ImageIcon largeImage;
-                int hitPoints;
-                JSONArray references = jsonObject.getJSONArray("references");
+                JSONArray references = json.getJSONArray("references");
 
-                try {
-                    cardText = (String) ((JSONObject) jsonObject.get("card_text")).get("english");
-                } catch (JSONException e) {
+                if (json.getJSONObject("card_text").has("english")) {
+                    cardText = json.getJSONObject("card_text").getString("english");
+                } else {
                     cardText = "";
                 }
 
                 try {
-                    URL url = new URL((String) ((JSONObject) jsonObject.get("mini_image")).get("default"));
+                    URL url = new URL(json.getJSONObject("mini_image").getString("default"));
                     miniImage = new ImageIcon(ImageIO.read(url));
-                    url = new URL((String) ((JSONObject) jsonObject.get("large_image")).get("default"));
-                    largeImage = new ImageIcon(ImageIO.read(url));
                 } catch (IOException e) {
                     miniImage = null;
-                    largeImage = null;
                 }
 
                 try {
-                    hitPoints = (int) jsonObject.get("hit_points");
-                } catch (JSONException e) {
-                    hitPoints = 0;
+                    URL url = new URL(json.getJSONObject("large_image").getString("default"));
+                    largeImage = new ImageIcon(ImageIO.read(url));
+                } catch (IOException e) {
+                    largeImage = null;
                 }
 
-                Card card = new Card(cardID, cardType, cardName, cardText, miniImage, largeImage, hitPoints, references);
-                cards.add(card);
-                //System.out.println(card.getCardName());
+                // Initialize card type specific variables
+                if (cardType == CardType.CREEP || cardType == CardType.HERO || cardType == CardType.SPELL) {
+                    CardColor color;
+                    int manaCost;
+                    int attack;
+                    int armor;
+                    int hitPoints;
+
+                    if (json.has("is_black")) {
+                        color = CardColor.BLACK;
+                    } else if (json.has("is_blue")) {
+                        color = CardColor.BLUE;
+                    } else if (json.has("is_green")) {
+                        color = CardColor.GREEN;
+                    } else if (json.has("is_red")) {
+                        color = CardColor.RED;
+                    } else {
+                        throw new IllegalArgumentException("No valid color field was detected in the set's JSON file.");
+                    }
+
+                    switch (cardType) {
+                        case CREEP:
+                            manaCost = json.getInt("mana_cost");
+
+                            if (json.has("attack")) {
+                                attack = json.getInt("attack");
+                            } else {
+                                attack = 0;
+                            }
+
+                            if (json.has("armor")) {
+                                armor = json.getInt("armor");
+                            } else {
+                                armor = 0;
+                            }
+
+                            hitPoints = json.getInt("hit_points");
+                            card = new Creep(cardID, cardType, cardName, cardText, miniImage,
+                                    largeImage, references, color, manaCost, attack, armor, hitPoints);
+                            cards.add(card);
+                            System.out.println("Creep: " + card.getCardName());
+                            break;
+                        case HERO:
+                            attack = json.getInt("attack");
+
+                            if (json.has("armor")) {
+                                armor = json.getInt("armor");
+                            } else {
+                                armor = 0;
+                            }
+
+                            hitPoints = json.getInt("hit_points");
+                            card = new Hero(cardID, cardType, cardName, cardText, miniImage,
+                                    largeImage, references, color, attack, armor, hitPoints);
+                            cards.add(card);
+                            System.out.println("Hero: " + card.getCardName());
+                            break;
+                        case SPELL:
+                            manaCost = json.getInt("mana_cost");
+                            card = new Spell(cardID, cardType, cardName, cardText, miniImage,
+                                    largeImage, references, color, manaCost);
+                            cards.add(card);
+                            System.out.println("Spell: " + card.getCardName());
+                            break;
+                        default:
+                            throw new IllegalArgumentException("Unknown input for card type detected.");
+                    }
+                } else if (cardType == CardType.ITEM) {
+                    SubType subType = SubType.valueOf(json.getString("sub_type").toUpperCase());
+                    int goldCost = json.getInt("gold_cost");
+                    card = new Item(cardID, cardType, cardName, cardText, miniImage,
+                            largeImage, references, subType, goldCost);
+                    cards.add(card);
+                    System.out.println("Item: " + card.getCardName());
+                } else {
+                    throw new IllegalArgumentException("Unknown input for card type detected.");
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.println("ILLEGAL: " + json.getJSONObject("card_name").getString("english"));
             }
         }
 
         return cards;
     }
 
-    public static void drawCards(List<Card> cards) {
+    public void drawCards(List<Card> cards) {
         JPanel cardsPanel = new JPanel();
 
         for (Card card : cards) {
@@ -147,13 +225,5 @@ public class CardLibrary {
         mainFrame.pack();
         mainFrame.setVisible(true);
         mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-    }
-
-    public static void main(String[] args) {
-        JSONObject obj = sendGetRequests("00/");
-        if (obj != null) {
-            List<Card> cards = readJSONFile(obj);
-            drawCards(cards);
-        }
     }
 }

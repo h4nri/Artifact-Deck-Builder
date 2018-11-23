@@ -2,25 +2,33 @@ import org.json.JSONArray;
 
 import javax.swing.*;
 
-public class Card {
+public abstract class Card {
     private final int cardID;
-    private final String cardType;
+    private final CardType cardType;
     private final String cardName;
     private final String cardText;
     private final ImageIcon miniImage;
     private final ImageIcon largeImage;
-    private final int hitPoints;
     private final JSONArray references;
 
-    public Card(int cardID, String cardType, String cardName, String cardText, ImageIcon miniImage, ImageIcon largeImage,
-                int hitPoints, JSONArray references) {
+    public Card() {
+        cardID = -1;
+        cardType = null;
+        cardName = "Default";
+        cardText = "This card was created using the default constructor of the Card class.";
+        miniImage = null;
+        largeImage = null;
+        references = null;
+    }
+
+    public Card(int cardID, CardType cardType, String cardName, String cardText, ImageIcon miniImage, ImageIcon largeImage,
+                JSONArray references) {
         this.cardID = cardID;
         this.cardType = cardType;
         this.cardName = cardName;
         this.cardText = cardText;
         this.miniImage = miniImage;
         this.largeImage = largeImage;
-        this.hitPoints = hitPoints;
         this.references = references;
     }
 
@@ -28,7 +36,7 @@ public class Card {
         return cardID;
     }
 
-    public String getCardType() {
+    public CardType getCardType() {
         return cardType;
     }
 
@@ -46,10 +54,6 @@ public class Card {
 
     public ImageIcon getLargeImage() {
         return largeImage;
-    }
-
-    public int getHitPoints() {
-        return hitPoints;
     }
 
     public JSONArray getReferences() {
