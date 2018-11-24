@@ -202,28 +202,4 @@ public class CardLibrary {
 
         return cards;
     }
-
-    public void drawCards(List<Card> cards) {
-        JPanel cardsPanel = new JPanel();
-
-        for (Card card : cards) {
-            BufferedImage resizedImg = new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g2 = resizedImg.createGraphics();
-
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2.drawImage(card.getMiniImage().getImage(), 0, 0, 100, 100, null);
-            g2.dispose();
-
-            JButton button = new JButton(new ImageIcon(resizedImg));
-            button.setBackground(Color.WHITE);
-            button.setPreferredSize(new Dimension(100, 100));
-            cardsPanel.add(button);
-        }
-
-        JFrame mainFrame = new JFrame("Artifact Deck Builder");
-        mainFrame.setContentPane(cardsPanel);
-        mainFrame.pack();
-        mainFrame.setVisible(true);
-        mainFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-    }
 }
